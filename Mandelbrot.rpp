@@ -1,0 +1,61 @@
+kernel MandelbrotSet : ImageComputationKernel<ePixelWise>
+{
+    Image<eWrite> output; // Output Image 
+
+    param:
+        float4 WARM_COLOR;
+        float4 COLD_COLOR;
+        int MAX_ITER;
+
+    local:
+        float2 RANGE; 
+        float2 outputSize;
+        float2 normalizedRange;
+
+    
+    void define(){
+        defineParam(WARM_COLOR, "Warm Color");
+        defineParam(COLD_COLOR, "Cold Color");
+        defineParam(MAX_ITER, "Max Iteration", int(50));
+        
+    }
+
+    void init(){
+        RANGE.x = 1.6f;
+        RANGE.y = 1.6f;
+        outputSize.x = (float)output.bounds.width();
+        outputSize.y = (float)output.bounds.height();
+        normalizedRange.x = (RANGE.x - (RANGE.x * -1.0f)) / outputSize.x;
+        normalizedRange.y = (RANGE.y - (RANGE.y * -1.0f)) / outputSize.y;
+    }
+
+    void process(int2 pos){
+        // Need to make a loop that checks
+        // If a complex number is within a abs range
+
+        float u = 0.0f;
+        float v = 0.0f;
+        float u2 = u * u;
+        float v2 = v * v;
+
+        float x = (RANGE.x * -1.0f) + pos.x * normalizedRange.x;
+        float y = (RANGE.y * -1.0f) + pos.y * normalizedRange.y;
+
+        int iterCount = 1;
+
+        for(int k = 1; k < MAX_ITER && (u2 + v2 < 4.0); k++){
+            iterCount++;
+            v = 2 * u * v + y;
+            u = u2 - v2 + x;
+            u2 = u * u;
+            v2 = v * v;
+        }
+        if (iterCount >= MAX_ITER) {
+            /* interior */
+            output() = 0.0f;
+        }
+        else{
+            output() = ((float)iterCount / (float)MAX_ITER);
+        }
+    }
+};
