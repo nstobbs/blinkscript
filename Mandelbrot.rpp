@@ -2,13 +2,16 @@ kernel MandelbrotSet : ImageComputationKernel<ePixelWise>
 {
     Image<eWrite> output; // Output Image 
 
+    //TODO List
+    //Add a offset knob to transform the complex plane
+    //Add color 
     param:
         float4 WARM_COLOR;
         float4 COLD_COLOR;
         int MAX_ITER;
+        float2 range;
 
     local:
-        float2 RANGE; 
         float2 outputSize;
         float2 normalizedRange;
 
@@ -17,16 +20,17 @@ kernel MandelbrotSet : ImageComputationKernel<ePixelWise>
         defineParam(WARM_COLOR, "Warm Color");
         defineParam(COLD_COLOR, "Cold Color");
         defineParam(MAX_ITER, "Max Iteration", int(50));
+        defineParam(range, "View-able Range", float2(1.6f, 1.6f));
         
     }
 
     void init(){
-        RANGE.x = 1.6f;
-        RANGE.y = 1.6f;
+        //range.x = 1.6f;
+        //range.y = 1.6f;
         outputSize.x = (float)output.bounds.width();
         outputSize.y = (float)output.bounds.height();
-        normalizedRange.x = (RANGE.x - (RANGE.x * -1.0f)) / outputSize.x;
-        normalizedRange.y = (RANGE.y - (RANGE.y * -1.0f)) / outputSize.y;
+        normalizedRange.x = (range.x - (range.x * -1.0f)) / outputSize.x;
+        normalizedRange.y = (range.y - (range.y * -1.0f)) / outputSize.y;
     }
 
     void process(int2 pos){
@@ -38,8 +42,8 @@ kernel MandelbrotSet : ImageComputationKernel<ePixelWise>
         float u2 = u * u;
         float v2 = v * v;
 
-        float x = (RANGE.x * -1.0f) + pos.x * normalizedRange.x;
-        float y = (RANGE.y * -1.0f) + pos.y * normalizedRange.y;
+        float x = (range.x * -1.0f) + pos.x * normalizedRange.x;
+        float y = (range.y * -1.0f) + pos.y * normalizedRange.y;
 
         int iterCount = 1;
 
