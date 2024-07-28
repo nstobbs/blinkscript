@@ -2,52 +2,65 @@ kernel MandelbrotSet : ImageComputationKernel<ePixelWise>
 {
     Image<eWrite> output; // Output Image 
 
-    //TODO List
-    //Add a offset knob to transform the complex plane
-    //Add color 
     param:
         float4 WARM_COLOR;
         float4 COLD_COLOR;
         int MAX_ITER;
-        float2 range;
+        float inputRange;
+        float2 offset;
 
     local:
         float2 outputSize;
         float2 normalizedRange;
+        float aspectRatio;
+        float2 range;
+        float2 normalizeOffset;
 
-    
     void define(){
-        defineParam(WARM_COLOR, "Warm Color");
-        defineParam(COLD_COLOR, "Cold Color");
+
+        defineParam(WARM_COLOR, "Warm Color", float4(1.0f, 0.0f, 0.0f, 0.0f));
+        defineParam(COLD_COLOR, "Cold Color", float4(0.0f, 0.0f, 1.0f, 0.0f));
         defineParam(MAX_ITER, "Max Iteration", int(50));
-        defineParam(range, "View-able Range", float2(1.6f, 1.6f));
+        defineParam(inputRange, "Complex Plane Range", float(1.0f));
+        defineParam(offset, "Offset Complex Plane", float2(0.0f, 0.0f));
         
     }
 
     void init(){
-        //range.x = 1.6f;
-        //range.y = 1.6f;
+
         outputSize.x = (float)output.bounds.width();
         outputSize.y = (float)output.bounds.height();
+
+        aspectRatio = outputSize.x / outputSize.y;
+
+        range.x = inputRange * aspectRatio;
+        range.y = inputRange;
+
         normalizedRange.x = (range.x - (range.x * -1.0f)) / outputSize.x;
         normalizedRange.y = (range.y - (range.y * -1.0f)) / outputSize.y;
+
+        normalizeOffset.x = (range.x - (range.x * -1.0f)) / offset.x;
+        normalizeOffset.y = (range.x - (range.x * -1.0f)) / offset.y;
     }
 
     void process(int2 pos){
-        // Need to make a loop that checks
-        // If a complex number is within a abs range
 
         float u = 0.0f;
         float v = 0.0f;
         float u2 = u * u;
         float v2 = v * v;
 
-        float x = (range.x * -1.0f) + pos.x * normalizedRange.x;
-        float y = (range.y * -1.0f) + pos.y * normalizedRange.y;
+        //TODO
+        //Need to find a better way of dealing with transformations
+        //We need to normalize the offset as well.
+        //So that we don't have to deal with extreme values while zooming in
+        float x = (range.x * -1.0f) + (pos.x) * (normalizedRange.x);
+        float y = (range.y * -1.0f) + (pos.y) * (normalizedRange.y);
 
         int iterCount = 1;
 
         for(int k = 1; k < MAX_ITER && (u2 + v2 < 4.0); k++){
+
             iterCount++;
             v = 2 * u * v + y;
             u = u2 - v2 + x;
@@ -55,10 +68,30 @@ kernel MandelbrotSet : ImageComputationKernel<ePixelWise>
             v2 = v * v;
         }
         if (iterCount >= MAX_ITER) {
-            /* interior */
+
             output() = 0.0f;
         }
         else{
+            
+            //TODO
+            //Fix issue with the colors maths
+            //So it works as a range
+            float3 colorRange;
+            colorRange.x = WARM_COLOR.x - COLD_COLOR.x;
+            colorRange.y = WARM_COLOR.y - COLD_COLOR.y;
+            colorRange.z = WARM_COLOR.z - COLD_COLOR.z;
+
+            float3 colorToAdd;
+            colorToAdd.x = (colorRange.x / ((float)iterCount / (float)MAX_ITER));
+            colorToAdd.y = (colorRange.y / ((float)iterCount / (float)MAX_ITER));
+            colorToAdd.z = (colorRange.z / ((float)iterCount / (float)MAX_ITER));
+
+            float4 finalPixel;
+            finalPixel.x = COLD_COLOR.x + colorToAdd.x;
+            finalPixel.y = COLD_COLOR.y + colorToAdd.y;
+            finalPixel.z = COLD_COLOR.z + colorToAdd.z;
+            finalPixel.w = ((float)iterCount / (float)MAX_ITER);
+
             output() = ((float)iterCount / (float)MAX_ITER);
         }
     }
