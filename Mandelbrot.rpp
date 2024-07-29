@@ -14,16 +14,14 @@ kernel MandelbrotSet : ImageComputationKernel<ePixelWise>
         float2 normalizedRange;
         float aspectRatio;
         float2 range;
-        float2 normalizeOffset;
 
     void define(){
 
-        defineParam(WARM_COLOR, "Warm Color", float4(1.0f, 0.0f, 0.0f, 0.0f));
-        defineParam(COLD_COLOR, "Cold Color", float4(0.0f, 0.0f, 1.0f, 0.0f));
+        defineParam(WARM_COLOR, "Warm Color", float4(1.5f, 1.0f, 0.5f, 0.0f));
+        defineParam(COLD_COLOR, "Cold Color", float4(0.5f, 1.0f, 1.5f, 0.0f));
         defineParam(MAX_ITER, "Max Iteration", int(50));
         defineParam(inputRange, "Complex Plane Range", float(1.0f));
         defineParam(offset, "Offset Complex Plane", float2(0.0f, 0.0f));
-        
     }
 
     void init(){
@@ -38,9 +36,6 @@ kernel MandelbrotSet : ImageComputationKernel<ePixelWise>
 
         normalizedRange.x = (range.x - (range.x * -1.0f)) / outputSize.x;
         normalizedRange.y = (range.y - (range.y * -1.0f)) / outputSize.y;
-
-        normalizeOffset.x = (range.x - (range.x * -1.0f)) / offset.x;
-        normalizeOffset.y = (range.x - (range.x * -1.0f)) / offset.y;
     }
 
     void process(int2 pos){
@@ -72,27 +67,16 @@ kernel MandelbrotSet : ImageComputationKernel<ePixelWise>
             output() = 0.0f;
         }
         else{
-            
-            //TODO
-            //Fix issue with the colors maths
-            //So it works as a range
-            float3 colorRange;
-            colorRange.x = WARM_COLOR.x - COLD_COLOR.x;
-            colorRange.y = WARM_COLOR.y - COLD_COLOR.y;
-            colorRange.z = WARM_COLOR.z - COLD_COLOR.z;
 
-            float3 colorToAdd;
-            colorToAdd.x = (colorRange.x / ((float)iterCount / (float)MAX_ITER));
-            colorToAdd.y = (colorRange.y / ((float)iterCount / (float)MAX_ITER));
-            colorToAdd.z = (colorRange.z / ((float)iterCount / (float)MAX_ITER));
+            float result = ((float)iterCount / (float)MAX_ITER);
 
             float4 finalPixel;
-            finalPixel.x = COLD_COLOR.x + colorToAdd.x;
-            finalPixel.y = COLD_COLOR.y + colorToAdd.y;
-            finalPixel.z = COLD_COLOR.z + colorToAdd.z;
-            finalPixel.w = ((float)iterCount / (float)MAX_ITER);
+            finalPixel.x = COLD_COLOR.x + (WARM_COLOR.x - COLD_COLOR.x) * result;
+            finalPixel.y = COLD_COLOR.y + (WARM_COLOR.y - COLD_COLOR.y) * result;
+            finalPixel.z = COLD_COLOR.z + (WARM_COLOR.z - COLD_COLOR.z) * result;
+            finalPixel.w = result;
 
-            output() = ((float)iterCount / (float)MAX_ITER);
+            output() = finalPixel;
         }
     }
 };
