@@ -39,11 +39,12 @@ kernel MandelbrotSet : ImageComputationKernel<ePixelWise>
         normalizedRange.x = (range.x - (range.x * -1.0f)) / outputSize.x;
         normalizedRange.y = (range.y - (range.y * -1.0f)) / outputSize.y;
 
-        normalizedOffset.x = range.x + (offset.x * normalizedRange.x);
-        normalizedOffset.y = range.y + (offset.y * normalizedRange.y);
+        normalizedOffset.x = offset.x * ((1.0f - (1.0f * -1.0f)) / outputSize.x);
+        normalizedOffset.y = offset.y * (((1.0f * aspectRatio) - ((1.0f * aspectRatio) * -1.0f)) / outputSize.y);
+        
+        offsetDistance.x = (range.x / 2.0f) - normalizedOffset.x;
+        offsetDistance.y = (range.y / 2.0f) - normalizedOffset.y;
 
-        offsetDistance.x = (range.x) - normalizedOffset.x;
-        offsetDistance.y = (range.y) - normalizedOffset.y;
     }
 
     void process(int2 pos){
@@ -71,8 +72,16 @@ kernel MandelbrotSet : ImageComputationKernel<ePixelWise>
             v2 = v * v;
         }
         if (iterCount >= MAX_ITER) {
+
+            float times = 0.0001f;
+
+            float4 finalPixel;
+            finalPixel.x = COLD_COLOR.x + (WARM_COLOR.x - COLD_COLOR.x) * times;
+            finalPixel.y = COLD_COLOR.y + (WARM_COLOR.y - COLD_COLOR.y) * times;
+            finalPixel.z = COLD_COLOR.z + (WARM_COLOR.z - COLD_COLOR.z) * times;
+            finalPixel.w = 0.0f;
+            output() = finalPixel;
             
-            output() = 0.0f;
         }
         else{
 
