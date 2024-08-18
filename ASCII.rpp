@@ -1,0 +1,48 @@
+kernel ASCII : ImageComputationKernel<ePixelWise>
+{
+    /*
+    Shader that remaps pixels based on lum values to
+    a ASCII char. Require an ASCII mapping image to function.
+    */
+    Image<eRead> input;
+    Image<eRead, eAccessRandom, eEdgeClamped> mapping;
+    Image<eWrite> output;
+
+    param:
+        int MapSize;
+        int QuantizationRange;
+
+    local:
+        float2 uv;
+        float4 color;
+        float2 uv_new;
+        float  quantizationStep;
+
+
+    void define()
+    {
+        defineParam(MapSize, "ASCII Map Size", int(8));
+        defineParam(QuantizationRange, "Quantization Range", int(9));
+    }
+
+    void init()
+    {
+        quantizationStep =  1.0f / (float) QuantizationRange;
+    }
+
+    void process(int2 pos)
+    {
+        // Generates Sectioned UV Cords
+        uv.x = fmod(pos.x, MapSize) / MapSize;
+        uv.y = fmod(pos.y, MapSize) / MapSize;
+
+        // ST Map Process 
+        uv_new.x = uv.x * MapSize;
+        uv_new.y = uv.y * MapSize;
+       
+        float mapIndex = input(0) / quantizationStep;
+        color = bilinear(mapping, uv_new.x + (MapSize * mapIndex), uv_new.y);
+
+        output() = color;
+    }
+};
