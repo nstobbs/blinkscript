@@ -5,7 +5,7 @@ kernel ASCII : ImageComputationKernel<ePixelWise>
     a ASCII char. Require an ASCII mapping image to function.
     */
     Image<eRead> input;
-    Image<eRead, eAccessRandom, eEdgeClamped> mapping;
+    Image<eRead, eAccessRandom, eEdgeClamped> map;
     Image<eWrite> output;
 
     param:
@@ -41,7 +41,7 @@ kernel ASCII : ImageComputationKernel<ePixelWise>
         uv_new.y = uv.y * MapSize;
        
         float mapIndex = input(0) / quantizationStep;
-        color = bilinear(mapping, uv_new.x + (MapSize * mapIndex), uv_new.y);
+        color = bilinear(map, uv_new.x + (MapSize * mapIndex), uv_new.y);
 
         output() = color;
     }
