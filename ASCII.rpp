@@ -4,30 +4,52 @@ kernel ASCII : ImageComputationKernel<ePixelWise>
     Shader that remaps pixels based on lum values to
     a ASCII char. Require an ASCII mapping image to function.
     */
-    Image<eRead> input;
+    Image<eRead, eAccessRandom, eEdgeClamped> input;
     Image<eRead, eAccessRandom, eEdgeClamped> map;
-    Image<eWrite> output;
+    Image<eWrite, eAccessRandom> output;
 
     param:
         int MapSize;
         int QuantizationRange;
+        float Multiply;
+        bool Colour;
+        bool DisplayUv;
 
     local:
+        float quantizationStep;
+        float luminanceValue;
+        float pixelGroupArea;
         float2 uv;
-        float4 color;
-        float2 uv_new;
-        float  quantizationStep;
-
+        float2 uv2;
+        float2 tempUv;
+        float2 resolution;
+        float3 coefficients;
+        float3 inputRGB;
+        float3 downResRGB;
+        float4 outputRGBA;
 
     void define()
     {
         defineParam(MapSize, "ASCII Map Size", int(8));
         defineParam(QuantizationRange, "Quantization Range", int(9));
+        defineParam(Multiply, "Pre Process Multiply Image", float(4.0));
+        defineParam(Colour, "Coloured  Text", true);
+        defineParam(DisplayUv, "Display UVs", false);
     }
 
     void init()
     {
         quantizationStep =  1.0f / (float) QuantizationRange;
+
+        pixelGroupArea = (float) MapSize * MapSize;
+
+        resolution.x = input.bounds.width();
+        resolution.y = input.bounds.height();
+
+        // Based of rec.709
+        coefficients.x = 0.2126f;
+        coefficients.y = 0.7152f;
+        coefficients.z = 0.0722f;
     }
 
     void process(int2 pos)
@@ -36,13 +58,63 @@ kernel ASCII : ImageComputationKernel<ePixelWise>
         uv.x = fmod(pos.x, MapSize) / MapSize;
         uv.y = fmod(pos.y, MapSize) / MapSize;
 
-        // ST Map Process 
-        uv_new.x = uv.x * MapSize;
-        uv_new.y = uv.y * MapSize;
-       
-        float mapIndex = input(0) / quantizationStep;
-        color = bilinear(map, uv_new.x + (MapSize * mapIndex), uv_new.y);
+        // Copy Input
+        inputRGB.x = input(pos.x, pos.y).x;
+        inputRGB.y = input(pos.x, pos.y).y;
+        inputRGB.z = input(pos.x, pos.y).z;
 
-        output() = color;
+        // Generate DownRes Buffer
+        int2 currentPos = int2(pos.x, pos.y);
+        for (int x = currentPos.x; x < currentPos.x + MapSize && x < resolution.x; x++)
+        {
+            for (int y = currentPos.y; y < currentPos.y + MapSize && y < resolution.y; y++)
+            {
+                output(x, y).x = inputRGB.x;
+            }
+        }
+
+        // Increase Brightness
+        inputRGB = inputRGB * Multiply;
+
+        // Desaturation
+        float luma = inputRGB.x * coefficients.x
+                   + inputRGB.y * coefficients.y
+                   + inputRGB.z * coefficients.z;
+        float3 desaturatedPixel = (inputRGB - luma) * 0.0f + luma;
+
+        // Quantization
+        luminanceValue = clamp(float(int(desaturatedPixel.x / quantizationStep)) * quantizationStep, 0.0f, 1.0f);
+
+        // ST Map Process 
+        uv2.x = uv.x * MapSize;
+        uv2.y = uv.y * MapSize;
+       
+        // Add ASCII into Alpha Channel
+        float mapIndex = (luminanceValue / quantizationStep) - 1;
+        outputRGBA.w = bilinear(map, uv2.x + (MapSize * mapIndex), uv2.y, 0);
+
+        if (Colour)
+        {
+            // Premult RGB with A
+            outputRGBA.x = inputRGB.x * outputRGBA.w;
+            outputRGBA.y = inputRGB.y * outputRGBA.w;
+            outputRGBA.z = inputRGB.z * outputRGBA.w;
+        } 
+        else if (DisplayUv) 
+        {
+            // DEBUG OUTPUT
+            //outputRGBA.x = sum.x;
+            //outputRGBA.y = sum.y;
+           // outputRGBA.z = sum.z;
+        }
+        else
+        {
+            // Copy A to RGB
+            outputRGBA.x = outputRGBA.w;
+            outputRGBA.y = outputRGBA.w;
+            outputRGBA.z = outputRGBA.w;
+        }
+
+        output(pos.x, pos.y) = outputRGBA;
     }
 };
